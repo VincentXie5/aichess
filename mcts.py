@@ -4,6 +4,7 @@
 import numpy as np
 import copy
 from config import CONFIG
+from game import move_action2move_id
 
 
 def softmax(x):
@@ -119,6 +120,7 @@ class MCTS(object):
                 )
         # 在本次遍历中更新节点的值和访问次数
         # 必须添加符号，因为两个玩家共用一个搜索树
+        # 导致不同层的node交替代表两个玩家，因此value的值就是要取负号
         node.update_recursive(-leaf_value)
 
     def get_move_probs(self, state, temp=1e-3):
@@ -194,3 +196,35 @@ class MCTSPlayer(object):
             return move, move_probs
         else:
             return move
+
+# 基于MCTS的AI玩家
+# 使用与mcts的ai同一个搜索树，只是动作选择由人类提供
+class HumanMCTSPlayer(object):
+
+    def __init__(self, mcts):
+        self.mcts = mcts
+        self.agent = "HUMAN"
+
+    def set_player_ind(self, p):
+        self.player = p
+
+    # 重置搜索树
+    def reset_player(self):
+        self.mcts.update_with_move(-1)
+
+    def __str__(self):
+        return 'HUMAN {}'.format(self.player)
+
+    # 得到行动
+    # 传入人类选择的move
+    def get_action(self, board, move_action, temp=1e-3):
+        # 像alphaGo_Zero论文一样使用MCTS算法返回的pi向量
+        move_probs = np.zeros(2086)
+        if  move_action2move_id.__contains__(move_action):
+            move = move_action2move_id[move_action]
+        else:
+            move = -1
+        acts, probs = self.mcts.get_move_probs(board, temp)
+        move_probs[list(acts)] = probs
+        self.mcts.update_with_move(move)
+        return move, move_probs
