@@ -1,16 +1,16 @@
+import copy
+import os
+import sys
+import time
+
 import numpy as np
 import pygame
-import sys
-import copy
-import random
 
-from collect_with_human import CollectWithHumanPipeline
-from game import move_action2move_id, Game, Board
-from mcts import MCTSPlayer, HumanMCTSPlayer
-import time
+from collect import CollectPipeline
 from config import CONFIG
-
-
+from game import Board
+from mcts import MCTSPlayer, HumanMCTSPlayer
+from sql import DataBase
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -283,10 +283,18 @@ while True:
         mcts_player.reset_player()
         human_player.reset_player()
         play_data = zip(states, mcts_probs, winner_z)
-        collecting_pipeline = CollectWithHumanPipeline()
-        iters = collecting_pipeline.collect(play_data)
-        if winner != -1:
-            print("Game end. Winner is", players[winner], 'iters:', iters)
+        play_data = list(play_data)[:]
+        episode_len = len(play_data)
+        pipeline = CollectPipeline()
+        play_data = pipeline.get_equi_data(play_data)
+        if os.path.exists(CONFIG['db_file']):
+            with DataBase(CONFIG['db_file']) as db:
+                db.insert_play_data(play_data)
+                this_iter = db.get_iter_and_increment()
+                if winner != -1:
+                    print("Game end. Winner is", players[winner], 'iters:', this_iter, 'episode_len:', episode_len)
+                else:
+                    print("Game end. Tie", 'iters:', this_iter, 'episode_len', episode_len)
         else:
-            print("Game end. Tie", 'iters:', iters)
+            print('数据库文件未初始化，请执行sql.py的代码')
         sys.exit()

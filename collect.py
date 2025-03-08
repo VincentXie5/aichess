@@ -1,18 +1,12 @@
 """自我对弈收集数据"""
-import random
-from collections import deque
 import copy
 import os
-import pickle
-import time
-from game import Board, Game, move_action2move_id, move_id2move_action, flip_map
-from mcts import MCTSPlayer
-from config import CONFIG
-
-if CONFIG['use_redis']:
-    import my_redis, redis
 
 import zip_array
+from config import CONFIG
+from game import Board, Game, move_action2move_id, move_id2move_action, flip_map
+from mcts import MCTSPlayer
+from sql import DataBase
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -33,11 +27,8 @@ class CollectPipeline:
         self.temp = 1  # 温度
         self.n_playout = CONFIG['play_out']  # 每次移动的模拟次数
         self.c_puct = CONFIG['c_puct']  # u的权重
-        self.buffer_size = CONFIG['buffer_size']  # 经验池大小
-        self.data_buffer = deque(maxlen=self.buffer_size)
         self.iters = 0
-        if CONFIG['use_redis']:
-            self.redis_cli = my_redis.get_redis_cli()
+        self.episode_len = 0
 
     # 从主体加载模型
     def load_model(self):
@@ -82,66 +73,35 @@ class CollectPipeline:
         # 收集自我对弈的数据
         for i in range(n_games):
             self.load_model()  # 从本体处加载最新模型
-            winner, play_data = self.game.start_self_play(self.mcts_player, temp=self.temp, is_shown=False)
+            winner, play_data = self.game.start_self_play(self.mcts_player, temp=self.temp, is_shown=True)
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
             # 增加数据
             play_data = self.get_equi_data(play_data)
-            if CONFIG['use_redis']:
-                while True:
-                    try:
-
-                        for d in play_data:
-                            self.redis_cli.rpush('train_data_buffer', pickle.dumps(d))
-                        self.redis_cli.incr('iters')
-                        self.iters = self.redis_cli.get('iters')
-                        print("存储完成")
-                        break
-                    except:
-                        print("存储失败")
-                        time.sleep(1)
+            if os.path.exists(CONFIG['db_file']):
+                with DataBase(CONFIG['db_file']) as db:
+                    db.insert_play_data(play_data)
+                    self.iters = db.get_iter_and_increment()
             else:
-                if os.path.exists(CONFIG['train_data_buffer_path']):
-                    while True:
-                        try:
-                            with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
-                                data_file = pickle.load(data_dict)
-                                self.data_buffer = deque(maxlen=self.buffer_size)
-                                self.data_buffer.extend(data_file['data_buffer'])
-                                self.iters = data_file['iters']
-                                del data_file
-                                self.iters += 1
-                                self.data_buffer.extend(play_data)
-                            print('成功载入数据')
-                            break
-                        except:
-                            print('读取数据发生意外，休眠30秒')
-                            time.sleep(30)
-                else:
-                    self.data_buffer.extend(play_data)
-                    self.iters += 1
-            data_dict = {'data_buffer': self.data_buffer, 'iters': self.iters}
-            with open(CONFIG['train_data_buffer_path'], 'wb') as data_file:
-                pickle.dump(data_dict, data_file)
-                print('成功保存数据')
-        return self.iters
+                print('数据库文件未初始化，请执行sql.py的代码')
 
     def run(self):
         """开始收集数据"""
         try:
             while True:
-                iters = self.collect_selfplay_data()
+                self.collect_selfplay_data()
                 print('batch i: {}, episode_len: {}'.format(
-                    iters, self.episode_len))
+                    self.iters, self.episode_len))
         except KeyboardInterrupt:
             print('\n\rquit')
 
-if CONFIG['use_frame'] == 'paddle':
-    collecting_pipeline = CollectPipeline(init_model='current_policy.model')
-    collecting_pipeline.run()
-elif CONFIG['use_frame'] == 'pytorch':
-    collecting_pipeline = CollectPipeline(init_model='current_policy.pkl')
-    collecting_pipeline.run()
-else:
-    print('暂不支持您选择的框架')
-    print('训练结束')
+if __name__ == '__main__':
+    if CONFIG['use_frame'] == 'paddle':
+        collecting_pipeline = CollectPipeline(init_model='current_policy.model')
+        collecting_pipeline.run()
+    elif CONFIG['use_frame'] == 'pytorch':
+        collecting_pipeline = CollectPipeline(init_model='current_policy.pkl')
+        collecting_pipeline.run()
+    else:
+        print('暂不支持您选择的框架')
+        print('训练结束')

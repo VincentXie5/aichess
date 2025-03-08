@@ -1,22 +1,15 @@
 """使用收集到数据进行训练"""
-
-
-import random
-from collections import defaultdict, deque
+import time
+from collections import defaultdict
 
 import numpy as np
-import pickle
-import time
 
 import zip_array
 from config import CONFIG
 from game import Game, Board
 from mcts import MCTSPlayer
 from mcts_pure import MCTS_Pure
-
-if CONFIG['use_redis']:
-    import my_redis, redis
-    import zip_array
+from sql import DataBase
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -45,10 +38,9 @@ class TrainPipeline:
         self.game_batch_num = CONFIG['game_batch_num']  # 训练更新的次数
         self.best_win_ratio = 0.0
         self.pure_mcts_playout_num = 500
-        if CONFIG['use_redis']:
-            self.redis_cli = my_redis.get_redis_cli()
-        self.buffer_size = maxlen=CONFIG['buffer_size']
-        self.data_buffer = deque(maxlen=self.buffer_size)
+        self.buffer_size = CONFIG['buffer_size']
+        self.mini_batch = []
+        self.iters = 0
         if init_model:
             try:
                 self.policy_value_net = PolicyValueNet(model_file=init_model)
@@ -88,16 +80,14 @@ class TrainPipeline:
 
     def policy_updata(self):
         """更新策略价值网络"""
-        mini_batch = random.sample(self.data_buffer, self.batch_size)
-        # print(mini_batch[0][1],mini_batch[1][1])
-        mini_batch = [zip_array.recovery_state_mcts_prob(data) for data in mini_batch]
-        state_batch = [data[0] for data in mini_batch]
+        recovery_mini_batch = [zip_array.recovery_state_mcts_prob(data) for data in self.mini_batch]
+        state_batch = [data[0] for data in recovery_mini_batch]
         state_batch = np.array(state_batch).astype('float32')
 
-        mcts_probs_batch = [data[1] for data in mini_batch]
+        mcts_probs_batch = [data[1] for data in recovery_mini_batch]
         mcts_probs_batch = np.array(mcts_probs_batch).astype('float32')
 
-        winner_batch = [data[2] for data in mini_batch]
+        winner_batch = [data[2] for data in recovery_mini_batch]
         winner_batch = np.array(winner_batch).astype('float32')
 
         # 旧的策略，旧的价值函数
@@ -150,44 +140,24 @@ class TrainPipeline:
         """开始训练"""
         try:
             for i in range(self.game_batch_num):
-                if not CONFIG['use_redis']:
-                    while True:
-                        try:
-                            with open(CONFIG['train_data_buffer_path'], 'rb') as data_dict:
-                                data_file = pickle.load(data_dict)
-                                self.data_buffer = data_file['data_buffer']
-                                self.iters = data_file['iters']
-                                del data_file
-                            print('已载入数据')
-                            break
-                        except:
-                            time.sleep(30)
-                else:
-                    while True:
-                        try:
-                            l = len(self.data_buffer)
-                            data = my_redis.get_list_range(self.redis_cli,'train_data_buffer', l if l == 0 else l - 1,-1)
-                            self.data_buffer.extend(data)
-                            self.iters = self.redis_cli.get('iters')
-                            if self.redis_cli.llen('train_data_buffer') > self.buffer_size:
-                                self.redis_cli.lpop('train_data_buffer',self.buffer_size/10)
-                            break
-                        except:
-                            time.sleep(5)
-
+                with DataBase(CONFIG['db_file']) as db:
+                    self.mini_batch = db.get_play_data_randomly(self.batch_size)
+                    self.iters = db.get_iter()
+                print('已载入数据')
                 print('step i {}: '.format(self.iters))
-                if len(self.data_buffer) > self.batch_size:
-                    loss, entropy = self.policy_updata()
-                    # 保存模型
-                    if CONFIG['use_frame'] == 'paddle':
-                        self.policy_value_net.save_model(CONFIG['paddle_model_path'])
-                    elif CONFIG['use_frame'] == 'pytorch':
-                        self.policy_value_net.save_model(CONFIG['pytorch_model_path'])
-                    else:
-                        print('不支持所选框架')
+                loss, entropy = self.policy_updata()
+                # 保存模型
+                if CONFIG['use_frame'] == 'paddle':
+                    self.policy_value_net.save_model(CONFIG['paddle_model_path'])
+                elif CONFIG['use_frame'] == 'pytorch':
+                    self.policy_value_net.save_model(CONFIG['pytorch_model_path'])
+                else:
+                    print('不支持所选框架')
 
-                time.sleep(CONFIG['train_update_interval'])  # 每10分钟更新一次模型
+                print('休眠中')
+                time.sleep(CONFIG['train_update_interval'])  # 每间隔一定的时间更新一次模型
 
+                # 每一定次数备份一个模型
                 if (i + 1) % self.check_freq == 0:
                     # win_ratio = self.policy_evaluate()
                     # print("current self-play batch: {},win_ratio: {}".format(i + 1, win_ratio))
@@ -206,13 +176,13 @@ class TrainPipeline:
         except KeyboardInterrupt:
             print('\n\rquit')
 
-
-if CONFIG['use_frame'] == 'paddle':
-    training_pipeline = TrainPipeline(init_model='current_policy.model')
-    training_pipeline.run()
-elif CONFIG['use_frame'] == 'pytorch':
-    training_pipeline = TrainPipeline(init_model='current_policy.pkl')
-    training_pipeline.run()
-else:
-    print('暂不支持您选择的框架')
-    print('训练结束')
+if __name__ == '__main__':
+    if CONFIG['use_frame'] == 'paddle':
+        training_pipeline = TrainPipeline(init_model='current_policy.model')
+        training_pipeline.run()
+    elif CONFIG['use_frame'] == 'pytorch':
+        training_pipeline = TrainPipeline(init_model='current_policy.pkl')
+        training_pipeline.run()
+    else:
+        print('暂不支持您选择的框架')
+        print('训练结束')

@@ -1,12 +1,12 @@
 """棋盘游戏控制"""
 
-import numpy as np
 import copy
 import time
-from config import CONFIG
-from collections import deque   # 这个队列用来判断长将或长捉
-import random
+from collections import deque  # 这个队列用来判断长将或长捉
 
+import numpy as np
+
+from config import CONFIG
 
 # 列表来表示棋盘，红方在上，黑方在下。使用时需要使用深拷贝
 state_list_init = [['红车', '红马', '红象', '红士', '红帅', '红士', '红象', '红马', '红车'],
@@ -799,7 +799,6 @@ class Game(object):
 
     # 使用蒙特卡洛树搜索开始自我对弈，存储游戏状态（状态，蒙特卡洛落子概率，胜负手）三元组用于神经网络训练
     def start_self_play(self, player, is_shown=False, temp=1e-3):
-        print('开始自我对弈')
         self.board.init_board()     # 初始化棋盘, start_player=1
         p1, p2 = 1, 2
         states, mcts_probs, current_players = [], [], []
@@ -808,6 +807,7 @@ class Game(object):
         while True:
             _count += 1
             if _count % 20 == 0:
+                # 每走20步，打印一次走一步花费的时间
                 start_time = time.time()
                 move, move_probs = player.get_action(self.board,
                                                      temp=temp,
@@ -817,8 +817,7 @@ class Game(object):
                 move, move_probs = player.get_action(self.board,
                                                      temp=temp,
                                                      return_prob=1)
-            # 保存自我对弈的数据
-            print('保存自我对弈的数据')
+            # 一步一步记录自我对弈的数据
             states.append(self.board.current_state())
             mcts_probs.append(move_probs)
             current_players.append(self.board.current_player_id)
