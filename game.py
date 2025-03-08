@@ -298,7 +298,7 @@ def get_legal_moves(state_deque, current_player_color):
                             toX = x + 1 * j
                             if check_bounds(toY, toX) \
                                     and check_obstruct(state_list[toY][toX], current_player_color='黑') \
-                                    and state_list[toY - i][x] == '一一':
+                                    and state_list[toY - i][x] == '一一': #绊马脚判定
                                 m = str(y) + str(x) + str(toY) + str(toX)
                                 if change_state(state_list, m) != old_state_list:
                                     moves.append(m)
@@ -449,7 +449,7 @@ def get_legal_moves(state_deque, current_player_color):
                     for toX in range(x - 1, -1, -1):
                         m = str(y) + str(x) + str(toY) + str(toX)
                         if hits is False:
-                            if state_list[toY][toX] != '一一':
+                            if state_list[toY][toX] != '一一': # 炮脚判断
                                 hits = True
                             else:
                                 if change_state(state_list, m) != old_state_list:
@@ -799,6 +799,7 @@ class Game(object):
 
     # 使用蒙特卡洛树搜索开始自我对弈，存储游戏状态（状态，蒙特卡洛落子概率，胜负手）三元组用于神经网络训练
     def start_self_play(self, player, is_shown=False, temp=1e-3):
+        print('开始自我对弈')
         self.board.init_board()     # 初始化棋盘, start_player=1
         p1, p2 = 1, 2
         states, mcts_probs, current_players = [], [], []
@@ -817,6 +818,7 @@ class Game(object):
                                                      temp=temp,
                                                      return_prob=1)
             # 保存自我对弈的数据
+            print('保存自我对弈的数据')
             states.append(self.board.current_state())
             mcts_probs.append(move_probs)
             current_players.append(self.board.current_player_id)

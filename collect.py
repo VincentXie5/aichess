@@ -115,6 +115,7 @@ class CollectPipeline:
                             print('成功载入数据')
                             break
                         except:
+                            print('读取数据发生意外，休眠30秒')
                             time.sleep(30)
                 else:
                     self.data_buffer.extend(play_data)
@@ -122,6 +123,7 @@ class CollectPipeline:
             data_dict = {'data_buffer': self.data_buffer, 'iters': self.iters}
             with open(CONFIG['train_data_buffer_path'], 'wb') as data_file:
                 pickle.dump(data_dict, data_file)
+                print('成功保存数据')
         return self.iters
 
     def run(self):
@@ -133,10 +135,6 @@ class CollectPipeline:
                     iters, self.episode_len))
         except KeyboardInterrupt:
             print('\n\rquit')
-
-
-collecting_pipeline = CollectPipeline(init_model='current_policy.model')
-collecting_pipeline.run()
 
 if CONFIG['use_frame'] == 'paddle':
     collecting_pipeline = CollectPipeline(init_model='current_policy.model')
