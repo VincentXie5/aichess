@@ -34,6 +34,8 @@ UIplay_for_collect.py   GUI界面人机对弈，并且会将对弈的数据收�
 然后，在终端运行python train.py用于模型训练，这个终端只用开一个。
 
 ## 四、声明
-本项目fork自https://github.com/tensorfly-gpu/aichess，并为了运行做了一些代码修改
+本项目fork自https://github.com/tensorfly-gpu/aichess
+
+并为了运行做了一些代码修改
 
 源代码可以去原始仓库查看，支持原作者
