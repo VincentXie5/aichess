@@ -22,7 +22,7 @@ else:
 if CONFIG['use_frame'] == 'paddle':
     policy_value_net = PolicyValueNet(model_file='current_policy.model')
 elif CONFIG['use_frame'] == 'pytorch':
-    policy_value_net = PolicyValueNet(model_file='current_policy.pkl')
+    policy_value_net = PolicyValueNet(model_file='backup/playout_200/current_policy.pkl')
 else:
     print('暂不支持您选择的框架')
 
@@ -180,11 +180,11 @@ fire_rect.center = (0 * x_ratio + x_bais, 3 * y_ratio + y_bais)
 # 加载两个玩家，AI对AI，或者AI对human
 board=Board()
 # 开始的玩家
-start_player = 2
+start_player = 1
 
 mcts_player = MCTSPlayer(policy_value_net.policy_value_fn,
                      c_puct=5,
-                     n_playout=120,
+                     n_playout=1200,
                      is_selfplay=0)
 human_player = HumanMCTSPlayer(mcts_player.mcts)
 

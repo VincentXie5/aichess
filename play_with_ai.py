@@ -1,7 +1,6 @@
-import random
+from config import CONFIG
 from game import move_action2move_id, Game, Board
 from mcts import MCTSPlayer
-from config import CONFIG
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -23,7 +22,7 @@ class Human1:
 if CONFIG['use_frame'] == 'paddle':
     policy_value_net = PolicyValueNet(model_file='current_policy.model')
 elif CONFIG['use_frame'] == 'pytorch':
-    policy_value_net = PolicyValueNet(model_file='current_policy.pkl')
+    policy_value_net = PolicyValueNet(model_file='backup/playout_200/current_policy.pkl')
 else:
     print('暂不支持您选择的框架')
 

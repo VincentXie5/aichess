@@ -1,13 +1,12 @@
-import pygame
-import sys
 import copy
-import random
-from game import move_action2move_id, Game, Board
-from mcts import MCTSPlayer
+import sys
 import time
+
+import pygame
+
 from config import CONFIG
-
-
+from game import move_action2move_id, Board
+from mcts import MCTSPlayer
 
 if CONFIG['use_frame'] == 'paddle':
     from paddle_net import PolicyValueNet
@@ -40,7 +39,7 @@ class Human:
 if CONFIG['use_frame'] == 'paddle':
     policy_value_net = PolicyValueNet(model_file='current_policy.model')
 elif CONFIG['use_frame'] == 'pytorch':
-    policy_value_net = PolicyValueNet(model_file='current_policy.pkl')
+    policy_value_net = PolicyValueNet(model_file='backup/playout_200/current_policy.pkl')
 else:
     print('暂不支持您选择的框架')
 
@@ -202,11 +201,11 @@ start_player = 1
 
 player1 = MCTSPlayer(policy_value_net.policy_value_fn,
                      c_puct=5,
-                     n_playout=1000,
+                     n_playout=1200,
                      is_selfplay=0)
 player2 = MCTSPlayer(policy_value_net.policy_value_fn,
                      c_puct=5,
-                     n_playout=2000,
+                     n_playout=1200,
                      is_selfplay=0)
 
 

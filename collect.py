@@ -1,6 +1,7 @@
 """自我对弈收集数据"""
 import copy
 import os
+import time
 
 import zip_array
 from config import CONFIG
@@ -89,9 +90,10 @@ class CollectPipeline:
         """开始收集数据"""
         try:
             while True:
+                start_time = time.time()
                 self.collect_selfplay_data()
-                print('batch i: {}, episode_len: {}'.format(
-                    self.iters, self.episode_len))
+                print('对局序号: {}, 对局步数: {}, 对局时间：{}'.format(
+                    self.iters, self.episode_len, time.time() - start_time))
         except KeyboardInterrupt:
             print('\n\rquit')
 

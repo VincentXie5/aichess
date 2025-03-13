@@ -45,8 +45,9 @@ class DataBase:
                 cursor = self.execute(query, random_index)
                 return [pickle.loads(data[0]) for data in cursor.fetchall()]
             except Exception as e:
-                print('获取对弈数据报错, 休眠30秒', e)
-                time.sleep(30)
+                print('获取对弈数据报错, 休眠{}秒'.format(CONFIG['train_update_interval']))
+                print('报错信息：', e)
+                time.sleep(CONFIG['train_update_interval'])
 
 
     def get_total_rows(self):
@@ -86,9 +87,9 @@ class DataBase:
 
 if __name__ == '__main__':
     with DataBase(CONFIG['db_file']) as db:
-        db.execute('CREATE TABLE IF NOT EXISTS t_play_data (id INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB)')
-        db.execute('CREATE TABLE IF NOT EXISTS t_iter (iter INTEGER)')
-        db.execute('INSERT INTO t_iter (iter) VALUES (0)')
+        # db.execute('CREATE TABLE IF NOT EXISTS t_play_data (id INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB)')
+        # db.execute('CREATE TABLE IF NOT EXISTS t_iter (iter INTEGER)')
+        # db.execute('INSERT INTO t_iter (iter) VALUES (0)')
         # randomly = db.get_play_data_randomly(512)
-        # print('rows:', db.get_total_rows())
-        # print('执行完毕')
+        print('rows:', db.get_total_rows())
+        print('执行完毕')

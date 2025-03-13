@@ -34,7 +34,7 @@ class TrainPipeline:
         self.batch_size = CONFIG['batch_size']  # 训练的batch大小
         self.epochs = CONFIG['epochs']  # 每次更新的train_step数量
         self.kl_targ = CONFIG['kl_targ']  # kl散度控制
-        self.check_freq = 100  # 保存模型的频率
+        self.check_freq = CONFIG['check_freq']  # 备份模型的频率
         self.game_batch_num = CONFIG['game_batch_num']  # 训练更新的次数
         self.best_win_ratio = 0.0
         self.pure_mcts_playout_num = 500
@@ -139,12 +139,12 @@ class TrainPipeline:
     def run(self):
         """开始训练"""
         try:
-            for i in range(self.game_batch_num):
+            for i in range(51, self.game_batch_num):
                 with DataBase(CONFIG['db_file']) as db:
                     self.mini_batch = db.get_play_data_randomly(self.batch_size)
                     self.iters = db.get_iter()
-                print('已载入数据')
-                print('step i {}: '.format(self.iters))
+                print('当前数据有{}盘'.format(self.iters))
+                print('step i {}: '.format(i))
                 loss, entropy = self.policy_updata()
                 # 保存模型
                 if CONFIG['use_frame'] == 'paddle':
