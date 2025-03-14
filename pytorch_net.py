@@ -1,12 +1,13 @@
 """策略价值网络"""
 
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 import torch.nn.functional as F
-from config import CONFIG
 from torch.cuda.amp import autocast
+
+from config import CONFIG
 
 
 # 搭建残差块
@@ -100,11 +101,11 @@ class PolicyValueNet:
 
     # 输入一个批次的状态，输出一个批次的动作概率和状态价值
     def policy_value(self, state_batch):
-        self.policy_value_net.eval()
+        self.policy_value_net.eval()  # 将模型设置为评估模式，关闭 Dropout 和 Batch Normalization 的训练行为
         state_batch = torch.tensor(state_batch).to(self.device)
-        log_act_probs, value = self.policy_value_net(state_batch)
+        log_act_probs, value = self.policy_value_net(state_batch) #这样已经进行了前向运算了
         log_act_probs, value = log_act_probs.cpu(), value.cpu()
-        act_probs = np.exp(log_act_probs.detach().numpy())
+        act_probs = np.exp(log_act_probs.detach().numpy()) # 使用 detach() 断开计算图，避免梯度计算。
         return act_probs, value.detach().numpy()
 
     # 输入棋盘，返回每个合法动作的（动作，概率）元组列表，以及棋盘状态的分数

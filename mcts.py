@@ -1,8 +1,10 @@
 """蒙特卡洛树搜索"""
 
 
-import numpy as np
 import copy
+
+import numpy as np
+
 from config import CONFIG
 from game import move_action2move_id
 
@@ -221,10 +223,25 @@ class HumanMCTSPlayer(object):
         # 像alphaGo_Zero论文一样使用MCTS算法返回的pi向量
         move_probs = np.zeros(2086)
         if  move_action2move_id.__contains__(move_action):
-            move = move_action2move_id[move_action]
+            chosen_move = move_action2move_id[move_action]
         else:
-            move = -1
+            chosen_move = -1
         acts, probs = self.mcts.get_move_probs(board, temp)
-        move_probs[list(acts)] = probs
-        self.mcts.update_with_move(move)
-        return move, move_probs
+        # 创建新的概率列表，指定的动作概率设为0.5，其他均匀分配剩余的0.5
+        new_probs = np.zeros(len(acts))
+        if chosen_move in acts:
+            idx = list(acts).index(chosen_move)
+            new_probs[idx] = 0.5
+            # 其他动作均分剩下的0.1
+            other_idx = [i for i, act in enumerate(acts) if act != chosen_move]
+            remaining_prob = 0.5 / len(other_idx)
+            for i in other_idx:
+                new_probs[i] = remaining_prob
+        else:
+            # 如果指定动作不在当前概率分布中，可能需要处理错误情况
+            pass
+
+        # 更新move_probs为新的概率分布
+        move_probs[:] = new_probs
+
+        return chosen_move, move_probs
